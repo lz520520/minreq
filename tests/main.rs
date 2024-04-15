@@ -3,7 +3,11 @@ mod setup;
 
 use self::setup::*;
 use std::io;
+use std::net::TcpStream;
+use log::LevelFilter;
+use native_tls::TlsConnector;
 use minreq::get;
+use std::io::{Read, Write};
 
 #[test]
 #[cfg(any(feature = "rustls", feature = "openssl", feature = "native-tls"))]
@@ -18,8 +22,15 @@ fn test_https() {
 #[test]
 #[cfg(any(feature = "rustls", feature = "openssl", feature = "native-tls"))]
 fn test_cert_https() {
-    println!("111");
-    // let resp = get("https://127.0.0.1:4433").with_disable_cert_verify().send().unwrap();
+    env_logger::Builder::new()
+        .filter_level(LevelFilter::Trace)
+        .init();
+    // log::set_max_level(LevelFilter::Trace);
+    // println!("666");
+    // log::debug!("1111");
+    //
+    let resp = get("https://127.0.0.1:4433").with_disable_cert_verify().send().unwrap();
+    resp.as_bytes();
     // println!("111");
     // println!("{}",resp.status_code);
     // assert_eq!(
@@ -27,7 +38,18 @@ fn test_cert_https() {
     //     200,
     // );
 }
+#[test]
+fn test_native_tls() {
+    let connector = TlsConnector::builder().danger_accept_invalid_certs(true).build().unwrap();
 
+    let stream = TcpStream::connect("127.0.0.1:4433").unwrap();
+    let mut stream = connector.connect("127.0.0.1", stream).unwrap();
+
+    stream.write_all(b"GET / HTTP/1.0\r\n\r\n").unwrap();
+    let mut res = vec![];
+    stream.read_to_end(&mut res).unwrap();
+    println!("{}", String::from_utf8_lossy(&res));
+}
 
 #[test]
 #[cfg(feature = "json-using-serde")]

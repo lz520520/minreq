@@ -258,13 +258,14 @@ impl Request {
     /// [`SerdeJsonError`](enum.Error.html#variant.SerdeJsonError) and
     /// [`InvalidUtf8InBody`](enum.Error.html#variant.InvalidUtf8InBody).
     pub fn send(self) -> Result<Response, Error> {
+        let disable_cert_verify = self.disable_cert_verify;
         let parsed_request = ParsedRequest::new(self)?;
         if parsed_request.url.https {
             #[cfg(any(feature = "rustls", feature = "openssl", feature = "native-tls"))]
             {
                 let is_head = parsed_request.config.method == Method::Head;
                 let conn = {
-                    if (self.disable_cert_verify) {
+                    if (disable_cert_verify) {
                         Connection::new(parsed_request).with_disable_cert_verify()
                     } else {
                         Connection::new(parsed_request)

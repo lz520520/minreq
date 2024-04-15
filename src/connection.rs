@@ -223,7 +223,7 @@ impl Connection {
             */
             let mut builder = {
                 if (self.disable_cert_verify){
-                    TlsConnector::builder().danger_accept_invalid_certs(true).danger_accept_invalid_hostnames(true).build()
+                    TlsConnector::builder().danger_accept_invalid_certs(true).danger_accept_invalid_hostnames(true).disable_built_in_roots(true).build()
                 } else {
                     TlsConnector::builder().build()
                 }
