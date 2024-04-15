@@ -83,6 +83,7 @@ pub struct Request {
     max_redirects: usize,
     #[cfg(feature = "proxy")]
     pub(crate) proxy: Option<Proxy>,
+    disable_cert_verify: bool,
 }
 
 impl Request {
@@ -110,6 +111,7 @@ impl Request {
             max_redirects: 100,
             #[cfg(feature = "proxy")]
             proxy: None,
+            disable_cert_verify: false
         }
     }
 
@@ -176,6 +178,11 @@ impl Request {
     /// Sets the request timeout in seconds.
     pub fn with_timeout(mut self, timeout: u64) -> Request {
         self.timeout = Some(timeout);
+        self
+    }
+
+    pub fn with_disable_cert_verify(mut self) -> Request {
+        self.disable_cert_verify = true;
         self
     }
 
@@ -256,7 +263,15 @@ impl Request {
             #[cfg(any(feature = "rustls", feature = "openssl", feature = "native-tls"))]
             {
                 let is_head = parsed_request.config.method == Method::Head;
-                let response = Connection::new(parsed_request).send_https()?;
+                let conn = {
+                    if (self.disable_cert_verify) {
+                        Connection::new(parsed_request).with_disable_cert_verify()
+                    } else {
+                        Connection::new(parsed_request)
+                    }
+                };
+
+                let response = conn.send_https()?;
                 Response::create(response, is_head)
             }
             #[cfg(not(any(feature = "rustls", feature = "openssl", feature = "native-tls")))]

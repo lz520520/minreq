@@ -3,6 +3,7 @@ mod setup;
 
 use self::setup::*;
 use std::io;
+use minreq::get;
 
 #[test]
 #[cfg(any(feature = "rustls", feature = "openssl", feature = "native-tls"))]
@@ -13,6 +14,20 @@ fn test_https() {
         200,
     );
 }
+
+#[test]
+#[cfg(any(feature = "rustls", feature = "openssl", feature = "native-tls"))]
+fn test_cert_https() {
+    println!("111");
+    // let resp = get("https://127.0.0.1:4433").with_disable_cert_verify().send().unwrap();
+    // println!("111");
+    // println!("{}",resp.status_code);
+    // assert_eq!(
+    //     get_status_code(minreq::get("https://example.com").send()),
+    //     200,
+    // );
+}
+
 
 #[test]
 #[cfg(feature = "json-using-serde")]

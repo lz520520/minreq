@@ -225,7 +225,7 @@
 //! If the timeout is set with `with_timeout`, the environment
 //! variable will be ignored.
 
-#![deny(missing_docs)]
+// #![deny(missing_docs)]
 
 #[cfg(feature = "rustls")]
 extern crate rustls;

@@ -228,12 +228,12 @@ pub struct TlsConnectorBuilder {
 }
 
 impl TlsConnectorBuilder {
-    /*
+
     /// Sets the identity to be used for client certificate authentication.
-    pub fn identity(&mut self, identity: Identity) -> &mut TlsConnectorBuilder {
+    /*pub fn identity(&mut self, identity: Identity) -> &mut TlsConnectorBuilder {
         self.identity = Some(identity);
         self
-    }
+    }*/
 
     /// Sets the minimum supported protocol version.
     ///
@@ -315,7 +315,7 @@ impl TlsConnectorBuilder {
         self.accept_invalid_hostnames = accept_invalid_hostnames;
         self
     }
-    */
+
 
     /// Creates a new `TlsConnector`.
     pub fn build(&self) -> Result<TlsConnector> {

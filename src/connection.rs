@@ -129,6 +129,7 @@ impl Read for HttpStream {
 pub struct Connection {
     request: ParsedRequest,
     timeout_at: Option<Instant>,
+    disable_cert_verify: bool,
 }
 
 impl Connection {
@@ -146,6 +147,7 @@ impl Connection {
         Connection {
             request,
             timeout_at,
+            disable_cert_verify: false
         }
     }
 
@@ -157,6 +159,10 @@ impl Connection {
         let timeout = timeout_at_to_duration(self.timeout_at);
         log::trace!("Timeout requested, it is currently: {:?}", timeout);
         timeout
+    }
+    pub fn with_disable_cert_verify(mut self) -> Connection {
+        self.disable_cert_verify = true;
+        self
     }
 
     /// Sends the [`Request`](struct.Request.html), consumes this
@@ -215,10 +221,20 @@ impl Connection {
             ...
             let sess = match builder.build() {
             */
-            let sess = match TlsConnector::new() {
+            let mut builder = {
+                if (self.disable_cert_verify){
+                    TlsConnector::builder().danger_accept_invalid_certs(true).danger_accept_invalid_hostnames(true).build()
+                } else {
+                    TlsConnector::builder().build()
+                }
+            };
+
+
+            let sess = match builder {
                 Ok(sess) => sess,
                 Err(err) => return Err(Error::IoError(io::Error::new(io::ErrorKind::Other, err))),
             };
+
 
             log::trace!("Establishing TCP connection to {}.", self.request.url.host);
             let tcp = self.connect()?;
