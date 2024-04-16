@@ -9,7 +9,8 @@ use crate::{Error, Method, ResponseLazy};
 use once_cell::sync::Lazy;
 #[cfg(feature = "rustls")]
 use rustls::{
-    self, ClientConfig, ClientConnection, OwnedTrustAnchor, RootCertStore, ServerName, StreamOwned,
+    self, ClientConfig, ClientConnection, OwnedTrustAnchor, RootCertStore, ServerName, StreamOwned,Certificate,
+    client::ServerCertVerified,client::ServerCertVerifier
 };
 #[cfg(feature = "rustls")]
 use std::convert::TryFrom;
@@ -18,7 +19,9 @@ use std::io::{self, Read, Write};
 use std::net::{TcpStream, ToSocketAddrs};
 #[cfg(feature = "rustls")]
 use std::sync::Arc;
-use std::time::{Duration, Instant};
+use std::time::{Duration, Instant, SystemTime};
+
+
 #[cfg(feature = "rustls-webpki")]
 use webpki_roots::TLS_SERVER_ROOTS;
 
@@ -44,12 +47,21 @@ static CONFIG: Lazy<Arc<ClientConfig>> = Lazy::new(|| {
             ta.name_constraints,
         )
     }));
+
     let config = ClientConfig::builder()
-        .with_safe_defaults()
-        .with_root_certificates(root_certificates)
+        .with_safe_defaults().with_custom_certificate_verifier(Arc::new(NoCertVerifier {}))
         .with_no_client_auth();
     Arc::new(config)
 });
+
+#[cfg(feature = "rustls")]
+struct NoCertVerifier {}
+#[cfg(feature = "rustls")]
+impl ServerCertVerifier for NoCertVerifier {
+    fn verify_server_cert(&self, end_entity: &Certificate, intermediates: &[Certificate], server_name: &ServerName, scts: &mut dyn Iterator<Item=&[u8]>, ocsp_response: &[u8], now: SystemTime) -> Result<ServerCertVerified, rustls::Error> {
+        Ok(ServerCertVerified::assertion())
+    }
+}
 
 type UnsecuredStream = TcpStream;
 #[cfg(feature = "rustls")]
@@ -181,6 +193,7 @@ impl Connection {
             };
             let sess = ClientConnection::new(CONFIG.clone(), dns_name)
                 .map_err(Error::RustlsCreateConnection)?;
+
 
             log::trace!("Establishing TCP connection to {}.", self.request.url.host);
             let tcp = self.connect()?;

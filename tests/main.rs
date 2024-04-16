@@ -5,7 +5,6 @@ use self::setup::*;
 use std::io;
 use std::net::TcpStream;
 use log::LevelFilter;
-use native_tls::TlsConnector;
 use minreq::get;
 use std::io::{Read, Write};
 
@@ -39,7 +38,9 @@ fn test_cert_https() {
     // );
 }
 #[test]
+#[cfg(any(feature = "native-tls"))]
 fn test_native_tls() {
+    use native_tls::TlsConnector;
     let connector = TlsConnector::builder().danger_accept_invalid_certs(true).build().unwrap();
 
     let stream = TcpStream::connect("127.0.0.1:4433").unwrap();
