@@ -5,9 +5,10 @@
 use crate::native_tls::{TlsConnector, TlsStream};
 use crate::request::ParsedRequest;
 use crate::{Error, Method, ResponseLazy};
-#[cfg(feature = "https-rustls")]
+#[cfg(feature = "once_cell")]
 use once_cell::sync::Lazy;
 #[cfg(feature = "rustls")]
+use rustls::{self, ClientConfig, ClientConnection, RootCertStore, ServerName, StreamOwned};
 use rustls::{
     self, ClientConfig, ClientConnection, OwnedTrustAnchor, RootCertStore, ServerName, StreamOwned,Certificate,
     client::ServerCertVerified,client::ServerCertVerifier
@@ -39,9 +40,10 @@ static CONFIG: Lazy<Arc<ClientConfig>> = Lazy::new(|| {
         }
     }
 
+    #[cfg(feature = "rustls-webpki")]
     #[allow(deprecated)] // Need to use add_server_trust_anchors to compile with rustls 0.21.1
     root_certificates.add_server_trust_anchors(TLS_SERVER_ROOTS.iter().map(|ta| {
-        OwnedTrustAnchor::from_subject_spki_name_constraints(
+        rustls::OwnedTrustAnchor::from_subject_spki_name_constraints(
             ta.subject,
             ta.spki,
             ta.name_constraints,
@@ -194,7 +196,6 @@ impl Connection {
             let sess = ClientConnection::new(CONFIG.clone(), dns_name)
                 .map_err(Error::RustlsCreateConnection)?;
 
-
             log::trace!("Establishing TCP connection to {}.", self.request.url.host);
             let tcp = self.connect()?;
 
@@ -247,7 +248,6 @@ impl Connection {
                 Ok(sess) => sess,
                 Err(err) => return Err(Error::IoError(io::Error::new(io::ErrorKind::Other, err))),
             };
-
 
             log::trace!("Establishing TCP connection to {}.", self.request.url.host);
             let tcp = self.connect()?;
@@ -302,8 +302,9 @@ impl Connection {
 
     fn connect(&self) -> Result<TcpStream, Error> {
         let tcp_connect = |host: &str, port: u32| -> Result<TcpStream, Error> {
-            let host = format!("{}:{}", host, port);
-            let addrs = host.to_socket_addrs().map_err(Error::IoError)?;
+            let addrs = (host, port as u16)
+                .to_socket_addrs()
+                .map_err(Error::IoError)?;
             let addrs_count = addrs.len();
 
             // Try all resolved addresses. Return the first one to which we could connect. If all

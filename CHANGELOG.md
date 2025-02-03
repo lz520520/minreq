@@ -6,6 +6,40 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.13.2] - 2025-01-29
+### Fixed
+- Reverted a part of 2.13.1, accidentally removed some code that wasn't actually
+  dead code.
+
+## [2.13.1] - 2025-01-29
+### Fixed
+- Usage of an openssl-probe function that's deprecated due to safety issues. See
+  [rustsec/advisory-db#2209](https://github.com/rustsec/advisory-db/pull/2209)
+  for further info.
+
+## [2.13.0] - 2024-12-04
+### Changed
+- The `https-rustls-probe` feature no longer brings in the `webpki-roots` and
+  `rustls-webpki` crates. Thanks for the report, @polarathene!
+  ([#111](https://github.com/neonmoe/minreq/issues/111))
+
+### Fixed
+- Cleaned up an unnecessary `format!()` in `Connection::connect`. Thanks for the
+  PR, @melotic! ([#112](https://github.com/neonmoe/minreq/pull/112))
+- Fixed some msrv and lint issues introduced by libc and clippy updates
+  respectively.
+
+## [2.12.0] - 2024-07-16
+### Added
+- Request::with_headers, to allow passing in many headers at a
+  time. Thanks for the idea and PR, @rawhuul!
+  ([#110](https://github.com/neonmoe/minreq/pull/110))
+
+## [2.11.2] - 2024-04-26
+### Fixed
+- The dev dependency tiny_http's version up to 0.12. Thanks for the
+  PR, @davide125! ([#107](https://github.com/neonmoe/minreq/pull/107))
+
 ## [2.11.1] - 2024-02-04
 ### Fixed
 - Unnecessary buffering causing performance problems. Thanks for the

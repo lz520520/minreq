@@ -115,6 +115,19 @@ impl Request {
         }
     }
 
+    /// Add headers to the request this is called on. Use this
+    /// function to add headers to your requests.
+    pub fn with_headers<T, K, V>(mut self, headers: T) -> Request
+    where
+        T: IntoIterator<Item = (K, V)>,
+        K: Into<String>,
+        V: Into<String>,
+    {
+        let headers = headers.into_iter().map(|(k, v)| (k.into(), v.into()));
+        self.headers.extend(headers);
+        self
+    }
+
     /// Adds a header to the request this is called on. Use this
     /// function to add headers to your requests.
     pub fn with_header<T: Into<String>, U: Into<String>>(mut self, key: T, value: U) -> Request {
@@ -530,7 +543,21 @@ pub fn patch<T: Into<URL>>(url: T) -> Request {
 
 #[cfg(test)]
 mod parsing_tests {
+
+    use std::collections::HashMap;
+
     use super::{get, ParsedRequest};
+
+    #[test]
+    fn test_headers() {
+        let mut headers = HashMap::new();
+        headers.insert("foo".to_string(), "bar".to_string());
+        headers.insert("foo".to_string(), "baz".to_string());
+
+        let req = get("http://www.example.org/test/res").with_headers(headers.clone());
+
+        assert_eq!(req.headers, headers);
+    }
 
     #[test]
     fn test_multiple_params() {

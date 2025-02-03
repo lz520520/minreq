@@ -21,7 +21,7 @@
 //!
 //! ```toml
 //! [dependencies]
-//! minreq = { version = "2.11.2-alpha", features = ["punycode"] }
+//! minreq = { version = "2.13.3-alpha", features = ["punycode"] }
 //! ```
 //!
 //! Below is the list of all available features.
@@ -238,9 +238,9 @@ extern crate log;
 extern crate native_tls;
 #[cfg(feature = "openssl-probe")]
 extern crate openssl_probe;
-#[cfg(feature = "rustls")]
+#[cfg(feature = "webpki-roots")]
 extern crate webpki;
-#[cfg(feature = "rustls")]
+#[cfg(feature = "webpki-roots")]
 extern crate webpki_roots;
 
 #[cfg(feature = "json-using-serde")]
