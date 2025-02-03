@@ -278,7 +278,7 @@ impl Request {
             {
                 let is_head = parsed_request.config.method == Method::Head;
                 let conn = {
-                    if (disable_cert_verify) {
+                    if disable_cert_verify {
                         Connection::new(parsed_request).with_disable_cert_verify()
                     } else {
                         Connection::new(parsed_request)

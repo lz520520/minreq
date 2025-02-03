@@ -8,10 +8,8 @@ use crate::{Error, Method, ResponseLazy};
 #[cfg(feature = "once_cell")]
 use once_cell::sync::Lazy;
 #[cfg(feature = "rustls")]
-use rustls::{self, ClientConfig, ClientConnection, RootCertStore, ServerName, StreamOwned};
-use rustls::{
-    self, ClientConfig, ClientConnection, OwnedTrustAnchor, RootCertStore, ServerName, StreamOwned,Certificate,
-    client::ServerCertVerified,client::ServerCertVerifier
+use rustls::{ClientConfig, ClientConnection, RootCertStore, ServerName, StreamOwned,Certificate,
+    client::ServerCertVerified,client::ServerCertVerifier,DigitallySignedStruct,client::HandshakeSignatureValid,
 };
 #[cfg(feature = "rustls")]
 use std::convert::TryFrom;
@@ -60,8 +58,32 @@ static CONFIG: Lazy<Arc<ClientConfig>> = Lazy::new(|| {
 struct NoCertVerifier {}
 #[cfg(feature = "rustls")]
 impl ServerCertVerifier for NoCertVerifier {
-    fn verify_server_cert(&self, end_entity: &Certificate, intermediates: &[Certificate], server_name: &ServerName, scts: &mut dyn Iterator<Item=&[u8]>, ocsp_response: &[u8], now: SystemTime) -> Result<ServerCertVerified, rustls::Error> {
+    fn verify_server_cert(
+        &self,
+        _end_entity: &Certificate,
+        _intermediates: &[Certificate],
+        _server_name: &ServerName,
+        _scts: &mut dyn Iterator<Item = &[u8]>,
+        _ocsp_response: &[u8],
+        _now: SystemTime,
+    ) -> Result<ServerCertVerified, rustls::Error> {
         Ok(ServerCertVerified::assertion())
+    }
+    fn verify_tls12_signature(
+        &self,
+        _message: &[u8],
+        _cert: &Certificate,
+        _dss: &DigitallySignedStruct,
+    ) -> Result<HandshakeSignatureValid, rustls::Error> {
+        Ok(HandshakeSignatureValid::assertion())
+    }
+    fn verify_tls13_signature(
+        &self,
+        _message: &[u8],
+        _cert: &Certificate,
+        _dss: &DigitallySignedStruct,
+    ) -> Result<HandshakeSignatureValid, rustls::Error> {
+        Ok(HandshakeSignatureValid::assertion())
     }
 }
 
