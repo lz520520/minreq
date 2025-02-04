@@ -84,6 +84,7 @@ pub struct Request {
     #[cfg(feature = "proxy")]
     pub(crate) proxy: Option<Proxy>,
     disable_cert_verify: bool,
+    domain: Option<String>,
 }
 
 impl Request {
@@ -111,7 +112,8 @@ impl Request {
             max_redirects: 100,
             #[cfg(feature = "proxy")]
             proxy: None,
-            disable_cert_verify: false
+            disable_cert_verify: false,
+            domain: None,
         }
     }
 
@@ -125,6 +127,10 @@ impl Request {
     {
         let headers = headers.into_iter().map(|(k, v)| (k.into(), v.into()));
         self.headers.extend(headers);
+        self
+    }
+    pub fn with_domain(mut self, domain: &str) -> Request {
+        self.domain = Some(domain.to_string());
         self
     }
 
@@ -270,18 +276,23 @@ impl Request {
     /// [`minreq::Error`](enum.Error.html) except
     /// [`SerdeJsonError`](enum.Error.html#variant.SerdeJsonError) and
     /// [`InvalidUtf8InBody`](enum.Error.html#variant.InvalidUtf8InBody).
-    pub fn send(self) -> Result<Response, Error> {
+    pub fn send(&self) -> Result<Response, Error> {
         let disable_cert_verify = self.disable_cert_verify;
-        let parsed_request = ParsedRequest::new(self)?;
+        let parsed_request = ParsedRequest::new(self.clone())?;
         if parsed_request.url.https {
             #[cfg(any(feature = "rustls", feature = "openssl", feature = "native-tls"))]
             {
+                let domain = if let Some( domain) = &self.domain {
+                    Some(domain.clone())
+                } else {
+                    None
+                };
                 let is_head = parsed_request.config.method == Method::Head;
                 let conn = {
                     if disable_cert_verify {
-                        Connection::new(parsed_request).with_disable_cert_verify()
+                        Connection::new(parsed_request).with_disable_cert_verify().with_domain(domain)
                     } else {
-                        Connection::new(parsed_request)
+                        Connection::new(parsed_request).with_domain(domain)
                     }
                 };
 

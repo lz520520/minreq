@@ -166,6 +166,7 @@ pub struct Connection {
     request: ParsedRequest,
     timeout_at: Option<Instant>,
     disable_cert_verify: bool,
+    domain: Option<String>,
 }
 
 impl Connection {
@@ -183,7 +184,8 @@ impl Connection {
         Connection {
             request,
             timeout_at,
-            disable_cert_verify: false
+            disable_cert_verify: false,
+            domain: None,
         }
     }
 
@@ -200,6 +202,10 @@ impl Connection {
         self.disable_cert_verify = true;
         self
     }
+    pub fn with_domain(mut self, domain: Option<String>) -> Connection {
+        self.domain = domain;
+        self
+    }
 
     /// Sends the [`Request`](struct.Request.html), consumes this
     /// connection, and returns a [`Response`](struct.Response.html).
@@ -208,10 +214,14 @@ impl Connection {
         enforce_timeout(self.timeout_at, move || {
             self.request.url.host = ensure_ascii_host(self.request.url.host)?;
             let bytes = self.request.as_bytes();
-
+            let server_name = if let Some(ref domain) = self.domain {
+                domain.clone()
+            } else {
+                self.request.url.host.clone()
+            };
             // Rustls setup
             log::trace!("Setting up TLS parameters for {}.", self.request.url.host);
-            let dns_name = match ServerName::try_from(&*self.request.url.host) {
+            let dns_name = match ServerName::try_from(server_name.as_str()) {
                 Ok(result) => result,
                 Err(err) => return Err(Error::IoError(io::Error::new(io::ErrorKind::Other, err))),
             };
@@ -250,8 +260,13 @@ impl Connection {
             self.request.url.host = ensure_ascii_host(self.request.url.host)?;
             let bytes = self.request.as_bytes();
 
-            log::trace!("Setting up TLS parameters for {}.", self.request.url.host);
-            let dns_name = &self.request.url.host;
+            let dns_name = if let Some(ref domain) = self.domain {
+                domain.clone()
+            } else {
+                self.request.url.host.clone()
+            };
+            log::trace!("Setting up TLS parameters for {}.", dns_name);
+            
             /*
             let mut builder = TlsConnector::builder();
             ...
@@ -274,9 +289,11 @@ impl Connection {
             log::trace!("Establishing TCP connection to {}.", self.request.url.host);
             let tcp = self.connect()?;
 
+
+            
             // Send request
             log::trace!("Establishing TLS session to {}.", self.request.url.host);
-            let mut tls = match sess.connect(dns_name, tcp) {
+            let mut tls = match sess.connect(&dns_name, tcp) {
                 Ok(tls) => tls,
                 Err(err) => return Err(Error::IoError(io::Error::new(io::ErrorKind::Other, err))),
             };
