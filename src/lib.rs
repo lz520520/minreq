@@ -248,13 +248,14 @@ extern crate serde;
 #[cfg(feature = "json-using-serde")]
 extern crate serde_json;
 
-mod connection;
+pub mod connection;
 mod error;
 mod http_url;
 #[cfg(feature = "proxy")]
 mod proxy;
 mod request;
 mod response;
+pub mod http_trait;
 
 pub use error::*;
 #[cfg(feature = "proxy")]

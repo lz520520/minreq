@@ -15,7 +15,7 @@ use rustls::{ClientConfig, ClientConnection, RootCertStore, ServerName, StreamOw
 use std::convert::TryFrom;
 use std::env;
 use std::io::{self, Read, Write};
-use std::net::{TcpStream, ToSocketAddrs};
+use std::net::{SocketAddr, TcpStream, ToSocketAddrs};
 #[cfg(feature = "rustls")]
 use std::sync::Arc;
 use std::time::{Duration, Instant, SystemTime};
@@ -23,6 +23,7 @@ use std::time::{Duration, Instant, SystemTime};
 
 #[cfg(feature = "rustls-webpki")]
 use webpki_roots::TLS_SERVER_ROOTS;
+use crate::http_trait::ReadWrite;
 
 #[cfg(feature = "rustls")]
 static CONFIG: Lazy<Arc<ClientConfig>> = Lazy::new(|| {
@@ -87,6 +88,8 @@ impl ServerCertVerifier for NoCertVerifier {
     }
 }
 
+pub type DialTlsFn = Box<dyn Fn(TcpStream) -> Result<Box<dyn ReadWrite>, io::Error> + Send + Sync  + 'static>;
+
 type UnsecuredStream = TcpStream;
 #[cfg(feature = "rustls")]
 type SecuredStream = StreamOwned<ClientConnection, TcpStream>;
@@ -100,11 +103,16 @@ pub(crate) enum HttpStream {
     Unsecured(UnsecuredStream, Option<Instant>),
     #[cfg(any(feature = "rustls", feature = "openssl", feature = "native-tls"))]
     Secured(Box<SecuredStream>, Option<Instant>),
+    Custom(Box<dyn ReadWrite>, Option<Instant>),
 }
 
 impl HttpStream {
     fn create_unsecured(reader: UnsecuredStream, timeout_at: Option<Instant>) -> HttpStream {
         HttpStream::Unsecured(reader, timeout_at)
+    }
+
+    fn create_custom(reader: Box<dyn ReadWrite>, timeout_at: Option<Instant>) -> HttpStream {
+        HttpStream::Custom(reader, timeout_at)
     }
 
     #[cfg(any(feature = "rustls", feature = "openssl", feature = "native-tls"))]
@@ -143,7 +151,11 @@ impl Read for HttpStream {
             HttpStream::Unsecured(inner, timeout_at) => {
                 timeout(inner, *timeout_at)?;
                 inner.read(buf)
-            }
+            },
+            HttpStream::Custom(inner, _timeout_at) => {
+                inner.read(buf)
+            },
+            
             #[cfg(any(feature = "rustls", feature = "openssl", feature = "native-tls"))]
             HttpStream::Secured(inner, timeout_at) => {
                 timeout(inner.get_ref(), *timeout_at)?;
@@ -167,6 +179,7 @@ pub struct Connection {
     timeout_at: Option<Instant>,
     disable_cert_verify: bool,
     domain: Option<String>,
+    dial_tls: Option<DialTlsFn>,
 }
 
 impl Connection {
@@ -186,6 +199,7 @@ impl Connection {
             timeout_at,
             disable_cert_verify: false,
             domain: None,
+            dial_tls: None,
         }
     }
 
@@ -206,7 +220,10 @@ impl Connection {
         self.domain = domain;
         self
     }
-
+    pub fn with_dial_tls(mut self, dial_tls_fn: DialTlsFn) -> Connection {
+        self.dial_tls = Some(dial_tls_fn);
+        self
+    }
     /// Sends the [`Request`](struct.Request.html), consumes this
     /// connection, and returns a [`Response`](struct.Response.html).
     #[cfg(feature = "rustls")]
@@ -324,18 +341,41 @@ impl Connection {
 
             // Send request
             log::trace!("Writing HTTP request.");
-            let _ = tcp.set_write_timeout(self.timeout()?);
-            tcp.write_all(&bytes)?;
+            match &mut self.dial_tls {
+                None => {
+                    let _ = tcp.set_write_timeout(self.timeout()?);
 
-            // Receive response
-            log::trace!("Reading HTTP response.");
-            let stream = HttpStream::create_unsecured(tcp, self.timeout_at);
-            let response = ResponseLazy::from_stream(
-                stream,
-                self.request.config.max_headers_size,
-                self.request.config.max_status_line_len,
-            )?;
-            handle_redirects(self, response)
+                    tcp.write_all(&bytes)?;
+
+                    // Receive response
+                    log::trace!("Reading HTTP response.");
+                    let stream = HttpStream::create_unsecured(tcp, self.timeout_at);
+                    let response = ResponseLazy::from_stream(
+                        stream,
+                        self.request.config.max_headers_size,
+                        self.request.config.max_status_line_len,
+                    )?;
+                    handle_redirects(self, response)
+                }
+                Some(v) => {
+                    // Send request
+                    log::trace!("Establishing TLS session to {}.", self.request.url.host);
+                    let mut tls = v(tcp)?;
+          
+                    log::trace!("Writing HTTPS request to {}.", self.request.url.host);
+                    tls.write_all(&bytes)?;
+
+                    // Receive request
+                    log::trace!("Reading HTTPS response from {}.", self.request.url.host);
+                    let response = ResponseLazy::from_stream(
+                        HttpStream::create_custom(tls, self.timeout_at),
+                        self.request.config.max_headers_size,
+                        self.request.config.max_status_line_len,
+                    )?;
+                    handle_redirects(self, response)
+                }
+            }
+       
         })
     }
 

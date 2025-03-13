@@ -1,11 +1,13 @@
-use crate::connection::Connection;
+use crate::connection::{Connection, DialTlsFn};
 use crate::http_url::{HttpUrl, Port};
 #[cfg(feature = "proxy")]
 use crate::proxy::Proxy;
 use crate::{Error, Response, ResponseLazy};
 use std::collections::HashMap;
-use std::fmt;
+use std::{fmt, io};
 use std::fmt::Write;
+use std::net::{SocketAddr, TcpStream};
+use crate::http_trait::ReadWrite;
 
 /// A URL type for requests.
 pub type URL = String;
@@ -70,6 +72,7 @@ impl fmt::Display for Method {
 /// [`send`](struct.Request.html#method.send) or
 /// [`send_lazy`](struct.Request.html#method.send_lazy) on it, as it
 /// doesn't do much on its own.
+
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub struct Request {
     pub(crate) method: Method,
@@ -276,7 +279,7 @@ impl Request {
     /// [`minreq::Error`](enum.Error.html) except
     /// [`SerdeJsonError`](enum.Error.html#variant.SerdeJsonError) and
     /// [`InvalidUtf8InBody`](enum.Error.html#variant.InvalidUtf8InBody).
-    pub fn send(&self) -> Result<Response, Error> {
+    pub fn send_with_tls(&self, dial_tls: Option<DialTlsFn>) -> Result<Response, Error> {
         let disable_cert_verify = self.disable_cert_verify;
         let parsed_request = ParsedRequest::new(self.clone())?;
         if parsed_request.url.https {
@@ -301,13 +304,25 @@ impl Request {
             }
             #[cfg(not(any(feature = "rustls", feature = "openssl", feature = "native-tls")))]
             {
-                Err(Error::HttpsFeatureNotEnabled)
+                match dial_tls {
+                    None => {
+                        Err(Error::HttpsFeatureNotEnabled)
+                    }
+                    Some(v) => {
+                        let is_head = parsed_request.config.method == Method::Head;
+                        let response = Connection::new(parsed_request).with_dial_tls(v).send()?;
+                        Response::create(response, is_head)
+                    }
+                }
             }
         } else {
             let is_head = parsed_request.config.method == Method::Head;
             let response = Connection::new(parsed_request).send()?;
             Response::create(response, is_head)
         }
+    }
+    pub fn send(&self) -> Result<Response, Error> {
+        self.send_with_tls(None)
     }
 
     /// Sends this request to the host, loaded lazily.
