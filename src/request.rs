@@ -486,6 +486,11 @@ impl ParsedRequest {
                     "was redirected to an absolute url with an invalid protocol",
                 ))
             })?;
+            if !url.host.eq(&self.url.host) {
+                let _ = self.config.headers.remove("Token");
+                let _ = self.config.headers.remove("Authorization");
+                let _ = self.config.headers.remove("Cookie");
+            }
             std::mem::swap(&mut url, &mut self.url);
             self.redirects.push(url);
         } else {
@@ -495,6 +500,11 @@ impl ParsedRequest {
             self.url.write_base_url_to(&mut absolute_url).unwrap();
             absolute_url.push_str(url);
             let mut url = HttpUrl::parse(&absolute_url, Some(&self.url))?;
+            if !url.host.eq(&self.url.host) {
+                let _ = self.config.headers.remove("Token");
+                let _ = self.config.headers.remove("Authorization");
+                let _ = self.config.headers.remove("Cookie");
+            }
             std::mem::swap(&mut url, &mut self.url);
             self.redirects.push(url);
         }

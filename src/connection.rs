@@ -449,7 +449,17 @@ fn handle_redirects(
                     feature = "openssl",
                     feature = "native-tls"
                 )))]
-                return Err(Error::HttpsFeatureNotEnabled);
+                {
+                    match &connection.dial_tls {
+                        None => {
+                            return Err(Error::HttpsFeatureNotEnabled);
+
+                        }
+                        Some(_) => {
+                            return connection.send()
+                        }
+                    }
+                }
                 #[cfg(any(feature = "rustls", feature = "openssl", feature = "native-tls"))]
                 return connection.send_https();
             } else {
