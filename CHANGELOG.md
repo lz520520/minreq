@@ -6,6 +6,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.13.3] - 2025-03-11
+### Fixed
+- Removed the `once_cell` dependency by making use of the new
+  `std::sync::OnceLock` type. This change only affects the rustls-based https
+  features. Thanks for the PR, @LyonSyonII!
+  ([#115](https://github.com/neonmoe/minreq/pull/115))
+- MSRV builds that got broken due to a `rustix` update. Now `tempfile` is pinned
+  as well.
+
 ## [2.13.2] - 2025-01-29
 ### Fixed
 - Reverted a part of 2.13.1, accidentally removed some code that wasn't actually

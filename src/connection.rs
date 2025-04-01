@@ -5,8 +5,6 @@
 use crate::native_tls::{TlsConnector, TlsStream};
 use crate::request::ParsedRequest;
 use crate::{Error, Method, ResponseLazy};
-#[cfg(feature = "once_cell")]
-use once_cell::sync::Lazy;
 #[cfg(feature = "rustls")]
 use rustls::{ClientConfig, ClientConnection, RootCertStore, ServerName, StreamOwned,Certificate,
     client::ServerCertVerified,client::ServerCertVerifier,DigitallySignedStruct,client::HandshakeSignatureValid,
@@ -26,7 +24,7 @@ use webpki_roots::TLS_SERVER_ROOTS;
 use crate::http_trait::ReadWrite;
 
 #[cfg(feature = "rustls")]
-static CONFIG: Lazy<Arc<ClientConfig>> = Lazy::new(|| {
+static CONFIG: std::sync::LazyLock<Arc<ClientConfig>> = std::sync::LazyLock::new(|| {
     let mut root_certificates = RootCertStore::empty();
 
     // Try to load native certs
