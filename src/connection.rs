@@ -24,7 +24,7 @@ use webpki_roots::TLS_SERVER_ROOTS;
 use crate::http_trait::ReadWrite;
 
 #[cfg(feature = "rustls")]
-static CONFIG: std::sync::LazyLock<Arc<ClientConfig>> = std::sync::LazyLock::new(|| {
+static CONFIG: once_cell::sync::Lazy<Arc<ClientConfig>> = once_cell::sync::Lazy::new(|| {
     let mut root_certificates = RootCertStore::empty();
 
     // Try to load native certs
