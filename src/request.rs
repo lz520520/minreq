@@ -496,9 +496,14 @@ impl ParsedRequest {
         } else {
             // The url does not have the protocol part, assuming it's
             // a relative resource.
+            let url = if url.starts_with("/") {
+                url.to_string()
+            } else {
+                "/".to_string() + url
+            };
             let mut absolute_url = String::new();
             self.url.write_base_url_to(&mut absolute_url).unwrap();
-            absolute_url.push_str(url);
+            absolute_url.push_str(&url);
             let mut url = HttpUrl::parse(&absolute_url, Some(&self.url))?;
             if !url.host.eq(&self.url.host) {
                 let _ = self.config.headers.remove("Token");
