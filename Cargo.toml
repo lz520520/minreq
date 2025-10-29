@@ -37,6 +37,7 @@ env_logger = "0.9"
 openssl-probe = { version = "0.1", optional = true }
 native-tls = { version = "0.2.13", optional = true }
 once_cell = "1.21"
+url = "1.7"
 
 [dev-dependencies]
 tiny_http = "0.12"

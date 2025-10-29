@@ -57,6 +57,12 @@ impl fmt::Display for Method {
     }
 }
 
+fn resolve_url(base_url: &str, relative_uri: &str) -> Result<String, url::ParseError>  {
+    let base = url::Url::parse(base_url)?; // 解析基础 URL
+    let resolved_url = base.join(relative_uri)?; // 进行拼接
+
+    Ok(resolved_url.to_string()) // 返回拼接后的 URL
+}
 /// An HTTP request.
 ///
 /// Generally created by the [`minreq::get`](fn.get.html)-style
@@ -496,14 +502,11 @@ impl ParsedRequest {
         } else {
             // The url does not have the protocol part, assuming it's
             // a relative resource.
-            let url = if url.starts_with("/") {
-                url.to_string()
-            } else {
-                "/".to_string() + url
-            };
+            // let url = "/".to_string() + url.strip_prefix(".").unwrap_or(url).strip_prefix("/").unwrap_or(url);
+
             let mut absolute_url = String::new();
             self.url.write_base_url_to(&mut absolute_url).unwrap();
-            absolute_url.push_str(&url);
+            absolute_url = resolve_url(&absolute_url, url).map_err(|e| {io::Error::new(io::ErrorKind::Other, e)})?;
             let mut url = HttpUrl::parse(&absolute_url, Some(&self.url))?;
             if !url.host.eq(&self.url.host) {
                 let _ = self.config.headers.remove("Token");
